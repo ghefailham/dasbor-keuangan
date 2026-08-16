@@ -57,21 +57,23 @@ def muat_data():
     if not os.path.exists(FILE_DATA):
         return pd.DataFrame(columns=['Tanggal', 'Jenis', 'Kategori', 'Nominal', 'Keterangan', 'Bukti'])
     df = pd.read_csv(FILE_DATA)
-    # Pastikan kolom 'Bukti' ada jika file lama belum ada kolomnya
     if 'Bukti' not in df.columns:
         df['Bukti'] = ''
     return df
 
+def simpan_data_ke_csv(df):
+    df.to_csv(FILE_DATA, index=False)
+    st.cache_data.clear()
+
 def simpan_transaksi(tanggal, jenis, kategori, nominal, keterangan, file_bukti):
     nama_file_unik = ""
-    
     if file_bukti is not None:
-        # Buat nama file unik berdasarkan waktu agar tidak bentrok
         nama_file_unik = f"{int(time.time())}_{file_bukti.name}"
         path_file = os.path.join(FOLDER_UPLOAD, nama_file_unik)
         with open(path_file, "wb") as f:
             f.write(file_bukti.getbuffer())
 
+    df = muat_data()
     data_baru = pd.DataFrame({
         'Tanggal': [str(tanggal)],
         'Jenis': [jenis],
@@ -80,8 +82,8 @@ def simpan_transaksi(tanggal, jenis, kategori, nominal, keterangan, file_bukti):
         'Keterangan': [keterangan],
         'Bukti': [nama_file_unik]
     })
-    data_baru.to_csv(FILE_DATA, mode='a', header=not os.path.exists(FILE_DATA), index=False)
-    st.cache_data.clear()
+    df = pd.concat([df, data_baru], ignore_index=True)
+    simpan_data_ke_csv(df)
 
 # --- SIDEBAR: LOGO & INPUT ---
 with st.sidebar:
@@ -97,21 +99,11 @@ with st.sidebar:
         tanggal_input = st.date_input("Tanggal", value=date.today())
         jenis_input = st.radio("Jenis", ["Pengeluaran", "Pemasukan"], horizontal=True)
         kategori_input = st.selectbox("Kategori", [
-            "Makanan", 
-            "Transportasi", 
-            "Tagihan", 
-            "Gaji", 
-            "Zakat/Sedekah", 
-            "Investasi", 
-            "Kesehatan", 
-            "Pendidikan",
-            "Ngopi",
-            "Lainnya"
+            "Makanan", "Transportasi", "Tagihan", "Gaji", 
+            "Zakat/Sedekah", "Investasi", "Kesehatan", "Pendidikan", "Lainnya"
         ])
         nominal_input = st.number_input("Nominal (Rp)", min_value=0, step=1000, format="%d")
         keterangan_input = st.text_input("Keterangan Singkat")
-        
-        # --- INPUT FILE BUKTI TRANSAKSI ---
         file_bukti_input = st.file_uploader("Upload Bukti (Opsional)", type=["png", "jpg", "jpeg"])
         
         submit_tombol = st.form_submit_button("Simpan Transaksi")
@@ -146,12 +138,57 @@ col3.metric("Saldo Tersisa", f"Rp {saldo_akhir:,.0f}".replace(",", "."))
 
 st.divider()
 
-st.subheader("📋 Riwayat Transaksi")
+st.subheader("📋 Riwayat & Kelola Transaksi")
+
 if not df.empty:
     # Tampilkan tabel data
-    st.dataframe(df.sort_values(by='Tanggal', ascending=False), use_container_width=True, hide_index=True)
+    st.dataframe(df, use_container_width=True, hide_index=True)
     
-    # Fitur melihat foto bukti transaksi yang diunggah
+    st.markdown("---")
+    st.subheader("⚙️ Edit atau Hapus Transaksi")
+    
+    # Pilih baris transaksi yang ingin diedit/dihapus berdasarkan index
+    pilihan_index = st.selectbox("Pilih nomor baris transaksi yang ingin diubah/dihapus:", df.index.tolist())
+    
+    if pilihan_index is not None:
+        row_pilih = df.loc[pilihan_index]
+        
+        with st.form("form_edit"):
+            st.write(f"**Mengubah Transaksi Baris ke-{pilihan_index}**")
+            edit_tanggal = st.date_input("Tanggal", value=pd.to_datetime(row_pilih['Tanggal']).date())
+            edit_jenis = st.selectbox("Jenis", ["Pengeluaran", "Pemasukan"], index=0 if row_pilih['Jenis']=='Pengeluaran' else 1)
+            edit_kategori = st.text_input("Kategori", value=row_pilih['Kategori'])
+            edit_nominal = st.number_input("Nominal (Rp)", min_value=0.0, value=float(row_pilih['Nominal']), step=1000.0)
+            edit_keterangan = st.text_input("Keterangan", value=row_pilih['Keterangan'])
+            
+            col_btn1, col_btn2 = st.columns(2)
+            simpan_edit = col_btn1.form_submit_button("💾 Simpan Perubahan")
+            hapus_data = col_btn2.form_submit_button("🗑️ Hapus Transaksi Ini")
+            
+            if simpan_edit:
+                df.at[pilihan_index, 'Tanggal'] = str(edit_tanggal)
+                df.at[pilihan_index, 'Jenis'] = edit_jenis
+                df.at[pilihan_index, 'Kategori'] = edit_kategori
+                df.at[pilihan_index, 'Nominal'] = edit_nominal
+                df.at[pilihan_index, 'Keterangan'] = edit_keterangan
+                simpan_data_ke_csv(df)
+                st.success("✅ Transaksi berhasil diperbarui!")
+                st.rerun()
+                
+            if hapus_data:
+                # Hapus file bukti jika ada
+                if pd.notna(row_pilih['Bukti']) and row_pilih['Bukti'] != '':
+                    path_file_lama = os.path.join(FOLDER_UPLOAD, str(row_pilih['Bukti']))
+                    if os.path.exists(path_file_lama):
+                        os.remove(path_file_lama)
+                
+                df = df.drop(pilihan_index).reset_index(drop=True)
+                simpan_data_ke_csv(df)
+                st.success("🗑️ Transaksi berhasil dihapus!")
+                st.rerun()
+
+    # Fitur melihat foto bukti transaksi
+    st.markdown("---")
     st.markdown("### 🖼️ Lihat Bukti Transaksi")
     daftar_bukti = df[df['Bukti'].notna() & (df['Bukti'] != '')]['Bukti'].tolist()
     
@@ -164,10 +201,16 @@ if not df.empty:
             else:
                 st.warning("File gambar bukti tidak ditemukan di server.")
     else:
-        st.info("Belum ada transaksi yang menyertakan foto bukti.")
+        # Kotak info kustom dengan latar putih tipis & teks putih bersih
+        st.markdown("""
+            <div style="background-color: rgba(255, 255, 255, 0.2); border: 1px solid rgba(255, 255, 255, 0.5); padding: 12px; border-radius: 10px; text-align: center; backdrop-filter: blur(5px);">
+                <p style="color: #ffffff !important; font-weight: 600; font-size: 15px; margin: 0;">Belum ada transaksi yang menyertakan foto bukti.</p>
+            </div>
+        """, unsafe_allow_html=True)
 else:
+    # Kotak info kustom dengan latar putih tipis & teks putih bersih
     st.markdown("""
-        <div style="background-color: rgba(255, 255, 255, 0.25); border: 1px solid rgba(255, 255, 255, 0.6); padding: 15px; border-radius: 10px; text-align: center; backdrop-filter: blur(5px);">
+        <div style="background-color: rgba(255, 255, 255, 0.2); border: 1px solid rgba(255, 255, 255, 0.5); padding: 15px; border-radius: 10px; text-align: center; backdrop-filter: blur(5px);">
             <p style="color: #ffffff !important; font-weight: 600; font-size: 16px; margin: 0;">ℹ️ Belum ada data transaksi yang tercatat. Silakan tambah melalui menu di sidebar.</p>
         </div>
     """, unsafe_allow_html=True)
