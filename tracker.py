@@ -40,6 +40,17 @@ css = f"""
     background-position: center;
     background-repeat: no-repeat;
 }}
+
+/* Memperjelas Kotak Info (st.info) agar teksnya terbaca dengan jelas */
+div[data-testid="stNotification"] {{
+    background-color: rgba(15, 23, 42, 0.85) !important; /* Warna latar belakang gelap semi-transparan */
+    border: 1px solid rgba(56, 189, 248, 0.5); /* Garis tepi biru tipis yang elegan */
+}}
+
+div[data-testid="stNotification"] p {{
+    color: #ffffff !important; /* Mengubah warna teks menjadi putih bersih */
+    font-weight: 500;
+}}
 </style>
 """
 st.markdown(css, unsafe_allow_html=True)
