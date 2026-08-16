@@ -3,12 +3,13 @@ import pandas as pd
 import os
 from datetime import date
 
-# Konfigurasi Halaman (Menggunakan emoji untuk tab agar stabil & tidak error)
+# Konfigurasi Halaman menggunakan favicon.png
 st.set_page_config(
     page_title="Money Tracker",
-    page_icon="favicon.png",  # Menggunakan file gambar untuk tab browser
+    page_icon="favicon.png", 
     layout="wide"
 )
+
 # --- SETUP DATABASE ---
 FILE_DATA = 'data_keuangan.csv'
 
@@ -31,12 +32,12 @@ def simpan_transaksi(tanggal, jenis, kategori, nominal, keterangan):
 
 # --- SIDEBAR: LOGO & INPUT ---
 with st.sidebar:
-    # Kita cek apakah file ada secara nyata
-    if os.path.exists("favicon.png"):
-        st.image("favicon.png", use_column_width=True)
-    else:
-        st.warning("File favicon.png tidak ditemukan di folder utama!")
-        st.subheader("💰 Money Tracker")     
+    try:
+        # Menampilkan favicon.png di sidebar dengan parameter yang aman
+        st.image("favicon.png", use_container_width=True)
+    except:
+        st.subheader("💰 Money Tracker")
+        
     st.markdown("---")
     st.subheader("➕ Tambah Transaksi Baru")
     
