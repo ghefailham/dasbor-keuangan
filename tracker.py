@@ -41,18 +41,24 @@ css = f"""
     background-repeat: no-repeat;
 }}
 
-/* Desain Kotak Info (st.info) - White Glassmorphism yang lebih cerah */
+/* Desain Kotak Info (st.info) - Latar Putih Tipis & Teks Putih */
 div[data-testid="stNotification"] {{
-    background-color: rgba(255, 255, 255, 0.4) !important; /* Warna putih lebih tebal (0.4) */
-    backdrop-filter: blur(8px); /* Efek blur kaca lebih terasa */
-    border: 1px solid rgba(255, 255, 255, 0.6) !important; /* Garis tepi lebih terlihat */
-    border-radius: 12px; /* Sudut lebih melengkung */
+    background-color: rgba(255, 255, 255, 0.2) !important; /* Latar putih transparan */
+    border: 1px solid rgba(255, 255, 255, 0.5) !important; /* Garis tepi putih */
+    border-radius: 10px;
 }}
 
-div[data-testid="stNotification"] p {{
-    color: #ffffff !important; /* Teks putih solid */
+/* Mengubah semua teks di dalam kotak info menjadi putih */
+div[data-testid="stNotification"] div, 
+div[data-testid="stNotification"] p, 
+div[data-testid="stNotification"] span {{
+    color: #ffffff !important; /* Warna teks putih bersih */
     font-weight: 600 !important;
-    text-shadow: 1px 1px 3px rgba(0,0,0,0.4); /* Bayangan teks lebih tegas agar kontras */
+}}
+
+/* Memastikan ikon di dalam kotak info juga berwarna putih */
+div[data-testid="stNotification"] svg {{
+    fill: #ffffff !important;
 }}
 </style>
 """
