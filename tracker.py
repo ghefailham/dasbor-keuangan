@@ -106,8 +106,7 @@ with st.sidebar:
             "Zakat/Sedekah", 
             "Investasi", 
             "Kesehatan", 
-            "Pendidikan",
-            "Ngopi", 
+            "Pendidikan", 
             "Lainnya"
         ])
         nominal_input = st.number_input("Nominal (Rp)", min_value=0, step=1000, format="%d")
@@ -159,13 +158,29 @@ if not df.empty:
     )
 
     if st.button("💾 Simpan Perubahan Riwayat"):
-        simpan_data_ke_csv(df_edited)
-        st.success("✅ Perubahan riwayat berhasil disimpan!")
+        # Cek dan hapus file fisik jika baris/buktinya dihapus dari tabel
+        df_lama = df
+        df_baru = df_edited
+        
+        bukti_lama = set(df_lama['Bukti'].dropna().unique())
+        bukti_baru = set(df_baru['Bukti'].dropna().unique())
+        bukti_untuk_dihapus = bukti_lama - bukti_baru
+        
+        for nama_file in bukti_untuk_dihapus:
+            if nama_file != "" and isinstance(nama_file, str):
+                path_hapus = os.path.join(FOLDER_UPLOAD, nama_file)
+                if os.path.exists(path_hapus):
+                    os.remove(path_hapus)
+        
+        simpan_data_ke_csv(df_baru)
+        st.success("✅ Perubahan riwayat & file bukti terkait berhasil diperbarui!")
         st.rerun()
 
     st.markdown("---")
     st.markdown("### 🖼️ Lihat Bukti Transaksi")
-    daftar_bukti = df[df['Bukti'].notna() & (df['Bukti'] != '')]['Bukti'].tolist()
+    # Ambil ulang data terbaru setelah diedit
+    df_current = muat_data()
+    daftar_bukti = df_current[df_current['Bukti'].notna() & (df_current['Bukti'] != '')]['Bukti'].tolist()
     
     if daftar_bukti:
         pilih_bukti = st.selectbox("Pilih file bukti transaksi yang ingin dilihat:", daftar_bukti)
