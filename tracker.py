@@ -52,7 +52,7 @@ FOLDER_UPLOAD = 'uploads'
 if not os.path.exists(FOLDER_UPLOAD):
     os.makedirs(FOLDER_UPLOAD)
 
-@st.cache_data
+# Membaca data langsung dari CSV tanpa cache agar tidak terjadi data kembali setelah refresh
 def muat_data():
     if not os.path.exists(FILE_DATA):
         return pd.DataFrame(columns=['No', 'Tanggal', 'Jenis', 'Kategori', 'Nominal', 'Keterangan', 'Bukti'])
@@ -62,11 +62,9 @@ def muat_data():
     return df
 
 def simpan_data_ke_csv(df):
-    # Rapikan nomor urut otomatis
     if not df.empty:
         df['No'] = range(1, len(df) + 1)
     df.to_csv(FILE_DATA, index=False)
-    st.cache_data.clear()
 
 def simpan_transaksi(tanggal, jenis, kategori, nominal, keterangan, file_bukti):
     nama_file_unik = ""
@@ -146,11 +144,10 @@ st.divider()
 st.subheader("📋 Riwayat & Bukti Transaksi")
 
 if not df.empty:
-    # Pastikan kolom 'No' selalu ada di urutan pertama
-    if 'No' not in df.columns:
-        df.insert(0, 'No', range(1, len(df) + 1))
+    if 'No' not in df.columns or len(df['No']) != len(df):
+        df['No'] = range(1, len(df) + 1)
 
-    # Tabel interaktif (Bisa edit langsung & hapus baris via icon x)
+    # Tabel interaktif
     df_edited = st.data_editor(
         df, 
         use_container_width=True, 
@@ -160,10 +157,10 @@ if not df.empty:
     )
 
     if st.button("💾 Simpan Perubahan Riwayat"):
-        # 1. Bersihkan dan hapus file fisik yang dibuang dari tabel
         df_lama = df
         df_baru = df_edited
         
+        # Hapus file fisik bukti jika barisnya dihapus
         bukti_lama = set(df_lama['Bukti'].dropna().unique())
         bukti_baru = set(df_baru['Bukti'].dropna().unique())
         bukti_untuk_dihapus = bukti_lama - bukti_baru
@@ -174,7 +171,6 @@ if not df.empty:
                 if os.path.exists(path_hapus):
                     os.remove(path_hapus)
         
-        # 2. Simpan data baru dan perbarui nomor urut
         simpan_data_ke_csv(df_baru)
         st.success("✅ Perubahan riwayat & file bukti berhasil diperbarui!")
         st.rerun()
@@ -182,15 +178,14 @@ if not df.empty:
     st.markdown("---")
     st.markdown("### 🔍 Detail & Bukti Berdasarkan Nomor Riwayat")
     
-    # Pilih nomor urut transaksi untuk melihat bukti di bawahnya
-    nomor_list = df_edited['No'].tolist() if 'No' in df_edited.columns else []
+    df_current = muat_data()
+    nomor_list = df_current['No'].tolist() if not df_current.empty else []
     
     if nomor_list:
         pilih_no = st.selectbox("Pilih Nomor Transaksi untuk melihat bukti:", nomor_list)
         
         if pilih_no:
-            # Ambil data baris berdasarkan nomor
-            baris_data = df_edited[df_edited['No'] == pilih_no]
+            baris_data = df_current[df_current['No'] == pilih_no]
             if not baris_data.empty:
                 nama_bukti = baris_data.iloc[0]['Bukti']
                 
