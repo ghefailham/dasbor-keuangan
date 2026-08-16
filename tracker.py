@@ -31,10 +31,12 @@ def simpan_transaksi(tanggal, jenis, kategori, nominal, keterangan):
 
 # --- SIDEBAR: LOGO & INPUT ---
 with st.sidebar:
-    try:
-        st.image("favicon.png", use_column_width=True) # Memanggil file yang sama
-    except:
-        st.subheader("💰 Money Tracker")        
+    # Kita cek apakah file ada secara nyata
+    if os.path.exists("favicon.png"):
+        st.image("favicon.png", use_column_width=True)
+    else:
+        st.warning("File favicon.png tidak ditemukan di folder utama!")
+        st.subheader("💰 Money Tracker")     
     st.markdown("---")
     st.subheader("➕ Tambah Transaksi Baru")
     
