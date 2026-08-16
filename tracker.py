@@ -1,6 +1,7 @@
 import streamlit as st
 import pandas as pd
 import os
+import base64
 from datetime import date
 
 # Konfigurasi Halaman menggunakan favicon.png
@@ -9,6 +10,27 @@ st.set_page_config(
     page_icon="favicon.png", 
     layout="wide"
 )
+
+# --- FUNGSI UNTUK MEMASANG BACKGROUND PNG ---
+def set_background(png_file):
+    if os.path.exists(png_file):
+        with open(png_file, "rb") as f:
+            data = f.read()
+        encoded = base64.b64encode(data).decode()
+        css = f"""
+        <style>
+        .stApp {{
+            background-image: url("data:image/png;base64,{encoded}");
+            background-size: cover;
+            background-position: center;
+            background-repeat: no-repeat;
+        }}
+        </style>
+        """
+        st.markdown(css, unsafe_allow_html=True)
+
+# Panggil fungsi background
+set_background("background.png")
 
 # --- SETUP DATABASE ---
 FILE_DATA = 'data_keuangan.csv'
@@ -33,7 +55,6 @@ def simpan_transaksi(tanggal, jenis, kategori, nominal, keterangan):
 # --- SIDEBAR: LOGO & INPUT ---
 with st.sidebar:
     try:
-        # Menampilkan favicon.png di sidebar dengan parameter yang aman
         st.image("favicon.png", use_container_width=True)
     except:
         st.subheader("💰 Money Tracker")
