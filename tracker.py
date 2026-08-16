@@ -104,7 +104,8 @@ with st.sidebar:
             "Zakat/Sedekah", 
             "Investasi", 
             "Kesehatan", 
-            "Pendidikan", 
+            "Pendidikan",
+            "Ngopi",
             "Lainnya"
         ])
         nominal_input = st.number_input("Nominal (Rp)", min_value=0, step=1000, format="%d")
