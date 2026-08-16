@@ -97,7 +97,17 @@ with st.sidebar:
     with st.form("form_transaksi", clear_on_submit=True):
         tanggal_input = st.date_input("Tanggal", value=date.today())
         jenis_input = st.radio("Jenis", ["Pengeluaran", "Pemasukan"], horizontal=True)
-        kategori_input = st.selectbox("Kategori", ["Makanan", "Transportasi", "Tagihan", "Gaji", "Zakat/Sedekah", "Investasi", "Lainnya"])
+        kategori_input = st.selectbox("Kategori", [
+    "Makanan", 
+    "Transportasi", 
+    "Tagihan", 
+    "Gaji", 
+    "Zakat/Sedekah", 
+    "Investasi", 
+    "Kesehatan",        
+    "Jajan",      
+    "Lainnya"
+])
         nominal_input = st.number_input("Nominal (Rp)", min_value=0, step=1000, format="%d")
         keterangan_input = st.text_input("Keterangan Singkat")
         
