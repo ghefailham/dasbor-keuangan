@@ -4,7 +4,7 @@ import os
 from datetime import date
 
 # Konfigurasi Halaman
-st.set_page_config(page_title="Money Tracker", page_icon="logo.png", layout="wide")
+st.set_page_config(page_title="Money Tracker", page_icon="logo.png.png", layout="wide")
 
 # --- 1. SETUP DATABASE & FUNGSI ---
 FILE_DATA = 'data_keuangan.csv'
