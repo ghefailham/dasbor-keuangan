@@ -41,22 +41,23 @@ css = f"""
     background-repeat: no-repeat;
 }}
 
-/* Desain Kotak Info (st.info) - White Glassmorphism */
+/* Desain Kotak Info (st.info) - White Glassmorphism yang lebih cerah */
 div[data-testid="stNotification"] {{
-    background-color: rgba(255, 255, 255, 0.2) !important; /* Putih tipis semi-transparan */
-    backdrop-filter: blur(5px); /* Efek blur agar seperti kaca */
-    border: 1px solid rgba(255, 255, 255, 0.4) !important; /* Garis tepi putih tipis */
-    border-radius: 10px; /* Sudut melengkung agar lebih modern */
+    background-color: rgba(255, 255, 255, 0.4) !important; /* Warna putih lebih tebal (0.4) */
+    backdrop-filter: blur(8px); /* Efek blur kaca lebih terasa */
+    border: 1px solid rgba(255, 255, 255, 0.6) !important; /* Garis tepi lebih terlihat */
+    border-radius: 12px; /* Sudut lebih melengkung */
 }}
 
 div[data-testid="stNotification"] p {{
-    color: #ffffff !important; /* Teks berwarna putih solid */
+    color: #ffffff !important; /* Teks putih solid */
     font-weight: 600 !important;
-    text-shadow: 1px 1px 2px rgba(0,0,0,0.3); /* Bayangan tipis agar teks lebih menonjol */
+    text-shadow: 1px 1px 3px rgba(0,0,0,0.4); /* Bayangan teks lebih tegas agar kontras */
 }}
 </style>
 """
 st.markdown(css, unsafe_allow_html=True)
+
 # --- SETUP DATABASE ---
 FILE_DATA = 'data_keuangan.csv'
 
