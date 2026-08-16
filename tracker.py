@@ -90,49 +90,7 @@ with st.sidebar:
     try:
         st.image("favicon.png", use_container_width=True)
     except:
-        st.subheader("📋 Riwayat Transaksi")
-
-if not df.empty:
-    # Menggunakan data_editor agar bisa edit langsung & hapus baris
-    # num_rows="dynamic" memungkinkan tombol hapus di dalam tabel
-    df_edited = st.data_editor(
-        df, 
-        use_container_width=True, 
-        hide_index=True,
-        num_rows="dynamic",
-        key="data_editor_transaksi"
-    )
-
-    # Tombol simpan perubahan
-    if st.button("💾 Simpan Perubahan Riwayat"):
-        # Cek apakah ada bukti yang terhapus (jika baris hilang)
-        # Jika baris hilang, kita bisa hapus file buktinya (opsional)
-        simpan_data_ke_csv(df_edited)
-        st.success("✅ Perubahan riwayat berhasil disimpan!")
-        st.rerun()
-
-    st.markdown("---")
-    st.markdown("### 🖼️ Lihat Bukti Transaksi")
-    daftar_bukti = df[df['Bukti'].notna() & (df['Bukti'] != '')]['Bukti'].tolist()
-    
-    if daftar_bukti:
-        pilih_bukti = st.selectbox("Pilih file bukti transaksi yang ingin dilihat:", daftar_bukti)
-        if pilih_bukti:
-            path_tampil = os.path.join(FOLDER_UPLOAD, pilih_bukti)
-            if os.path.exists(path_tampil):
-                st.image(path_tampil, caption=f"Bukti: {pilih_bukti}", width=300)
-    else:
-        st.markdown("""
-            <div style="background-color: rgba(255, 255, 255, 0.2); border: 1px solid rgba(255, 255, 255, 0.5); padding: 12px; border-radius: 10px; text-align: center; backdrop-filter: blur(5px);">
-                <p style="color: #ffffff !important; font-weight: 600; font-size: 15px; margin: 0;">Belum ada transaksi yang menyertakan foto bukti.</p>
-            </div>
-        """, unsafe_allow_html=True)
-else:
-    st.markdown("""
-        <div style="background-color: rgba(255, 255, 255, 0.2); border: 1px solid rgba(255, 255, 255, 0.5); padding: 15px; border-radius: 10px; text-align: center; backdrop-filter: blur(5px);">
-            <p style="color: #ffffff !important; font-weight: 600; font-size: 16px; margin: 0;">ℹ️ Belum ada data transaksi yang tercatat. Silakan tambah melalui menu di sidebar.</p>
-        </div>
-    """, unsafe_allow_html=True)
+        st.subheader("💰 Money Tracker")
         
     st.markdown("---")
     st.subheader("➕ Tambah Transaksi Baru")
@@ -141,8 +99,16 @@ else:
         tanggal_input = st.date_input("Tanggal", value=date.today())
         jenis_input = st.radio("Jenis", ["Pengeluaran", "Pemasukan"], horizontal=True)
         kategori_input = st.selectbox("Kategori", [
-            "Makanan", "Transportasi", "Tagihan", "Gaji", 
-            "Zakat/Sedekah", "Investasi", "Kesehatan", "Pendidikan", "Lainnya"
+            "Makanan", 
+            "Transportasi", 
+            "Tagihan", 
+            "Gaji", 
+            "Zakat/Sedekah", 
+            "Investasi", 
+            "Kesehatan", 
+            "Pendidikan",
+            "Ngopi", 
+            "Lainnya"
         ])
         nominal_input = st.number_input("Nominal (Rp)", min_value=0, step=1000, format="%d")
         keterangan_input = st.text_input("Keterangan Singkat")
@@ -180,56 +146,23 @@ col3.metric("Saldo Tersisa", f"Rp {saldo_akhir:,.0f}".replace(",", "."))
 
 st.divider()
 
-st.subheader("📋 Riwayat & Kelola Transaksi")
+st.subheader("📋 Riwayat Transaksi")
 
 if not df.empty:
-    # Tampilkan tabel data
-    st.dataframe(df, use_container_width=True, hide_index=True)
-    
-    st.markdown("---")
-    st.subheader("⚙️ Edit atau Hapus Transaksi")
-    
-    # Pilih baris transaksi yang ingin diedit/dihapus berdasarkan index
-    pilihan_index = st.selectbox("Pilih nomor baris transaksi yang ingin diubah/dihapus:", df.index.tolist())
-    
-    if pilihan_index is not None:
-        row_pilih = df.loc[pilihan_index]
-        
-        with st.form("form_edit"):
-            st.write(f"**Mengubah Transaksi Baris ke-{pilihan_index}**")
-            edit_tanggal = st.date_input("Tanggal", value=pd.to_datetime(row_pilih['Tanggal']).date())
-            edit_jenis = st.selectbox("Jenis", ["Pengeluaran", "Pemasukan"], index=0 if row_pilih['Jenis']=='Pengeluaran' else 1)
-            edit_kategori = st.text_input("Kategori", value=row_pilih['Kategori'])
-            edit_nominal = st.number_input("Nominal (Rp)", min_value=0.0, value=float(row_pilih['Nominal']), step=1000.0)
-            edit_keterangan = st.text_input("Keterangan", value=row_pilih['Keterangan'])
-            
-            col_btn1, col_btn2 = st.columns(2)
-            simpan_edit = col_btn1.form_submit_button("💾 Simpan Perubahan")
-            hapus_data = col_btn2.form_submit_button("🗑️ Hapus Transaksi Ini")
-            
-            if simpan_edit:
-                df.at[pilihan_index, 'Tanggal'] = str(edit_tanggal)
-                df.at[pilihan_index, 'Jenis'] = edit_jenis
-                df.at[pilihan_index, 'Kategori'] = edit_kategori
-                df.at[pilihan_index, 'Nominal'] = edit_nominal
-                df.at[pilihan_index, 'Keterangan'] = edit_keterangan
-                simpan_data_ke_csv(df)
-                st.success("✅ Transaksi berhasil diperbarui!")
-                st.rerun()
-                
-            if hapus_data:
-                # Hapus file bukti jika ada
-                if pd.notna(row_pilih['Bukti']) and row_pilih['Bukti'] != '':
-                    path_file_lama = os.path.join(FOLDER_UPLOAD, str(row_pilih['Bukti']))
-                    if os.path.exists(path_file_lama):
-                        os.remove(path_file_lama)
-                
-                df = df.drop(pilihan_index).reset_index(drop=True)
-                simpan_data_ke_csv(df)
-                st.success("🗑️ Transaksi berhasil dihapus!")
-                st.rerun()
+    # Tabel interaktif (Bisa edit langsung & hapus baris via icon x)
+    df_edited = st.data_editor(
+        df, 
+        use_container_width=True, 
+        hide_index=True,
+        num_rows="dynamic",
+        key="data_editor_transaksi"
+    )
 
-    # Fitur melihat foto bukti transaksi
+    if st.button("💾 Simpan Perubahan Riwayat"):
+        simpan_data_ke_csv(df_edited)
+        st.success("✅ Perubahan riwayat berhasil disimpan!")
+        st.rerun()
+
     st.markdown("---")
     st.markdown("### 🖼️ Lihat Bukti Transaksi")
     daftar_bukti = df[df['Bukti'].notna() & (df['Bukti'] != '')]['Bukti'].tolist()
@@ -240,17 +173,13 @@ if not df.empty:
             path_tampil = os.path.join(FOLDER_UPLOAD, pilih_bukti)
             if os.path.exists(path_tampil):
                 st.image(path_tampil, caption=f"Bukti: {pilih_bukti}", width=300)
-            else:
-                st.warning("File gambar bukti tidak ditemukan di server.")
     else:
-        # Kotak info kustom dengan latar putih tipis & teks putih bersih
         st.markdown("""
             <div style="background-color: rgba(255, 255, 255, 0.2); border: 1px solid rgba(255, 255, 255, 0.5); padding: 12px; border-radius: 10px; text-align: center; backdrop-filter: blur(5px);">
                 <p style="color: #ffffff !important; font-weight: 600; font-size: 15px; margin: 0;">Belum ada transaksi yang menyertakan foto bukti.</p>
             </div>
         """, unsafe_allow_html=True)
 else:
-    # Kotak info kustom dengan latar putih tipis & teks putih bersih
     st.markdown("""
         <div style="background-color: rgba(255, 255, 255, 0.2); border: 1px solid rgba(255, 255, 255, 0.5); padding: 15px; border-radius: 10px; text-align: center; backdrop-filter: blur(5px);">
             <p style="color: #ffffff !important; font-weight: 600; font-size: 16px; margin: 0;">ℹ️ Belum ada data transaksi yang tercatat. Silakan tambah melalui menu di sidebar.</p>
