@@ -41,20 +41,22 @@ css = f"""
     background-repeat: no-repeat;
 }}
 
-/* Memperjelas Kotak Info secara Total */
-.stAlert, div[data-baseweb="notification"] {{
-    background-color: rgba(15, 23, 42, 0.9) !important;
-    color: #ffffff !important;
+/* Desain Kotak Info (st.info) - White Glassmorphism */
+div[data-testid="stNotification"] {{
+    background-color: rgba(255, 255, 255, 0.2) !important; /* Putih tipis semi-transparan */
+    backdrop-filter: blur(5px); /* Efek blur agar seperti kaca */
+    border: 1px solid rgba(255, 255, 255, 0.4) !important; /* Garis tepi putih tipis */
+    border-radius: 10px; /* Sudut melengkung agar lebih modern */
 }}
 
-.stAlert p, div[data-baseweb="notification"] p {{
-    color: #ffffff !important;
+div[data-testid="stNotification"] p {{
+    color: #ffffff !important; /* Teks berwarna putih solid */
     font-weight: 600 !important;
+    text-shadow: 1px 1px 2px rgba(0,0,0,0.3); /* Bayangan tipis agar teks lebih menonjol */
 }}
 </style>
 """
 st.markdown(css, unsafe_allow_html=True)
-
 # --- SETUP DATABASE ---
 FILE_DATA = 'data_keuangan.csv'
 
