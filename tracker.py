@@ -105,7 +105,7 @@ with st.sidebar:
         jenis_input = st.radio("Jenis", ["Pengeluaran", "Pemasukan"], horizontal=True)
         kategori_input = st.selectbox("Kategori", [
             "Makanan", "Transportasi", "Tagihan", "Gaji", 
-            "Zakat/Sedekah", "Investasi", "Kesehatan", "Pendidikan", "Lainnya"
+            "Zakat/Sedekah", "Investasi", "Kesehatan", "Pendidikan", "Ngopi", "Lainnya"
         ])
         nominal_input = st.number_input("Nominal (Rp)", min_value=0, step=1000, format="%d")
         keterangan_input = st.text_input("Keterangan Singkat")
