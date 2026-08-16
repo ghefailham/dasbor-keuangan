@@ -90,7 +90,49 @@ with st.sidebar:
     try:
         st.image("favicon.png", use_container_width=True)
     except:
-        st.subheader("💰 Money Tracker")
+        st.subheader("📋 Riwayat Transaksi")
+
+if not df.empty:
+    # Menggunakan data_editor agar bisa edit langsung & hapus baris
+    # num_rows="dynamic" memungkinkan tombol hapus di dalam tabel
+    df_edited = st.data_editor(
+        df, 
+        use_container_width=True, 
+        hide_index=True,
+        num_rows="dynamic",
+        key="data_editor_transaksi"
+    )
+
+    # Tombol simpan perubahan
+    if st.button("💾 Simpan Perubahan Riwayat"):
+        # Cek apakah ada bukti yang terhapus (jika baris hilang)
+        # Jika baris hilang, kita bisa hapus file buktinya (opsional)
+        simpan_data_ke_csv(df_edited)
+        st.success("✅ Perubahan riwayat berhasil disimpan!")
+        st.rerun()
+
+    st.markdown("---")
+    st.markdown("### 🖼️ Lihat Bukti Transaksi")
+    daftar_bukti = df[df['Bukti'].notna() & (df['Bukti'] != '')]['Bukti'].tolist()
+    
+    if daftar_bukti:
+        pilih_bukti = st.selectbox("Pilih file bukti transaksi yang ingin dilihat:", daftar_bukti)
+        if pilih_bukti:
+            path_tampil = os.path.join(FOLDER_UPLOAD, pilih_bukti)
+            if os.path.exists(path_tampil):
+                st.image(path_tampil, caption=f"Bukti: {pilih_bukti}", width=300)
+    else:
+        st.markdown("""
+            <div style="background-color: rgba(255, 255, 255, 0.2); border: 1px solid rgba(255, 255, 255, 0.5); padding: 12px; border-radius: 10px; text-align: center; backdrop-filter: blur(5px);">
+                <p style="color: #ffffff !important; font-weight: 600; font-size: 15px; margin: 0;">Belum ada transaksi yang menyertakan foto bukti.</p>
+            </div>
+        """, unsafe_allow_html=True)
+else:
+    st.markdown("""
+        <div style="background-color: rgba(255, 255, 255, 0.2); border: 1px solid rgba(255, 255, 255, 0.5); padding: 15px; border-radius: 10px; text-align: center; backdrop-filter: blur(5px);">
+            <p style="color: #ffffff !important; font-weight: 600; font-size: 16px; margin: 0;">ℹ️ Belum ada data transaksi yang tercatat. Silakan tambah melalui menu di sidebar.</p>
+        </div>
+    """, unsafe_allow_html=True)
         
     st.markdown("---")
     st.subheader("➕ Tambah Transaksi Baru")
