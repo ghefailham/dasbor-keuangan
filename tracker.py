@@ -55,13 +55,16 @@ if not os.path.exists(FOLDER_UPLOAD):
 @st.cache_data
 def muat_data():
     if not os.path.exists(FILE_DATA):
-        return pd.DataFrame(columns=['Tanggal', 'Jenis', 'Kategori', 'Nominal', 'Keterangan', 'Bukti'])
+        return pd.DataFrame(columns=['No', 'Tanggal', 'Jenis', 'Kategori', 'Nominal', 'Keterangan', 'Bukti'])
     df = pd.read_csv(FILE_DATA)
     if 'Bukti' not in df.columns:
         df['Bukti'] = ''
     return df
 
 def simpan_data_ke_csv(df):
+    # Rapikan nomor urut otomatis
+    if not df.empty:
+        df['No'] = range(1, len(df) + 1)
     df.to_csv(FILE_DATA, index=False)
     st.cache_data.clear()
 
@@ -74,7 +77,9 @@ def simpan_transaksi(tanggal, jenis, kategori, nominal, keterangan, file_bukti):
             f.write(file_bukti.getbuffer())
 
     df = muat_data()
+    nomor_baru = len(df) + 1
     data_baru = pd.DataFrame({
+        'No': [nomor_baru],
         'Tanggal': [str(tanggal)],
         'Jenis': [jenis],
         'Kategori': [kategori],
@@ -99,15 +104,8 @@ with st.sidebar:
         tanggal_input = st.date_input("Tanggal", value=date.today())
         jenis_input = st.radio("Jenis", ["Pengeluaran", "Pemasukan"], horizontal=True)
         kategori_input = st.selectbox("Kategori", [
-            "Makanan", 
-            "Transportasi", 
-            "Tagihan", 
-            "Gaji", 
-            "Zakat/Sedekah", 
-            "Investasi", 
-            "Kesehatan", 
-            "Pendidikan", 
-            "Lainnya"
+            "Makanan", "Transportasi", "Tagihan", "Gaji", 
+            "Zakat/Sedekah", "Investasi", "Kesehatan", "Pendidikan", "Lainnya"
         ])
         nominal_input = st.number_input("Nominal (Rp)", min_value=0, step=1000, format="%d")
         keterangan_input = st.text_input("Keterangan Singkat")
@@ -145,9 +143,13 @@ col3.metric("Saldo Tersisa", f"Rp {saldo_akhir:,.0f}".replace(",", "."))
 
 st.divider()
 
-st.subheader("📋 Riwayat Transaksi")
+st.subheader("📋 Riwayat & Bukti Transaksi")
 
 if not df.empty:
+    # Pastikan kolom 'No' selalu ada di urutan pertama
+    if 'No' not in df.columns:
+        df.insert(0, 'No', range(1, len(df) + 1))
+
     # Tabel interaktif (Bisa edit langsung & hapus baris via icon x)
     df_edited = st.data_editor(
         df, 
@@ -158,7 +160,7 @@ if not df.empty:
     )
 
     if st.button("💾 Simpan Perubahan Riwayat"):
-        # Cek dan hapus file fisik jika baris/buktinya dihapus dari tabel
+        # 1. Bersihkan dan hapus file fisik yang dibuang dari tabel
         df_lama = df
         df_baru = df_edited
         
@@ -172,28 +174,45 @@ if not df.empty:
                 if os.path.exists(path_hapus):
                     os.remove(path_hapus)
         
+        # 2. Simpan data baru dan perbarui nomor urut
         simpan_data_ke_csv(df_baru)
-        st.success("✅ Perubahan riwayat & file bukti terkait berhasil diperbarui!")
+        st.success("✅ Perubahan riwayat & file bukti berhasil diperbarui!")
         st.rerun()
 
     st.markdown("---")
-    st.markdown("### 🖼️ Lihat Bukti Transaksi")
-    # Ambil ulang data terbaru setelah diedit
-    df_current = muat_data()
-    daftar_bukti = df_current[df_current['Bukti'].notna() & (df_current['Bukti'] != '')]['Bukti'].tolist()
+    st.markdown("### 🔍 Detail & Bukti Berdasarkan Nomor Riwayat")
     
-    if daftar_bukti:
-        pilih_bukti = st.selectbox("Pilih file bukti transaksi yang ingin dilihat:", daftar_bukti)
-        if pilih_bukti:
-            path_tampil = os.path.join(FOLDER_UPLOAD, pilih_bukti)
-            if os.path.exists(path_tampil):
-                st.image(path_tampil, caption=f"Bukti: {pilih_bukti}", width=300)
+    # Pilih nomor urut transaksi untuk melihat bukti di bawahnya
+    nomor_list = df_edited['No'].tolist() if 'No' in df_edited.columns else []
+    
+    if nomor_list:
+        pilih_no = st.selectbox("Pilih Nomor Transaksi untuk melihat bukti:", nomor_list)
+        
+        if pilih_no:
+            # Ambil data baris berdasarkan nomor
+            baris_data = df_edited[df_edited['No'] == pilih_no]
+            if not baris_data.empty:
+                nama_bukti = baris_data.iloc[0]['Bukti']
+                
+                if pd.notna(nama_bukti) and nama_bukti != '':
+                    path_tampil = os.path.join(FOLDER_UPLOAD, str(nama_bukti))
+                    if os.path.exists(path_tampil):
+                        st.image(path_tampil, caption=f"Bukti untuk Transaksi No. {pilih_no} ({baris_data.iloc[0]['Keterangan']})", width=350)
+                    else:
+                        st.warning("⚠️ File gambar bukti fisik tidak ditemukan di server.")
+                else:
+                    st.markdown("""
+                        <div style="background-color: rgba(255, 255, 255, 0.2); border: 1px solid rgba(255, 255, 255, 0.5); padding: 10px; border-radius: 8px; backdrop-filter: blur(5px);">
+                            <p style="color: #ffffff !important; font-weight: 500; font-size: 14px; margin: 0;">Nomor transaksi ini tidak menyertakan foto bukti.</p>
+                        </div>
+                    """, unsafe_allow_html=True)
     else:
         st.markdown("""
             <div style="background-color: rgba(255, 255, 255, 0.2); border: 1px solid rgba(255, 255, 255, 0.5); padding: 12px; border-radius: 10px; text-align: center; backdrop-filter: blur(5px);">
-                <p style="color: #ffffff !important; font-weight: 600; font-size: 15px; margin: 0;">Belum ada transaksi yang menyertakan foto bukti.</p>
+                <p style="color: #ffffff !important; font-weight: 600; font-size: 15px; margin: 0;">Belum ada riwayat transaksi.</p>
             </div>
         """, unsafe_allow_html=True)
+
 else:
     st.markdown("""
         <div style="background-color: rgba(255, 255, 255, 0.2); border: 1px solid rgba(255, 255, 255, 0.5); padding: 15px; border-radius: 10px; text-align: center; backdrop-filter: blur(5px);">
