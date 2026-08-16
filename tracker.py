@@ -2,14 +2,14 @@ import streamlit as st
 import pandas as pd
 import os
 
-st.set_page_config(page_title="Money Tracker", page_icon="💰", layout="wide")
+st.set_page_config(page_title="Money Tracker", page_icon="logo.png", layout="wide")
 
 # --- MENAMPIKAN LOGO ---
 # Pastikan file gambar bernama 'logo.png' berada di folder yang sama
 col_logo1, col_logo2, col_logo3 = st.columns([1, 2, 1])
 with col_logo2:
     try:
-        st.image("logo.png", width=200)
+        st.image("logo.png", width=250)
     except:
         st.title("💰 Money Tracker Pribadi")
 
