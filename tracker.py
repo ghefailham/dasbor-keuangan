@@ -5,14 +5,14 @@ import base64
 import time
 from datetime import date
 
-# Konfigurasi Halaman menggunakan favicon.png
+# --- KONFIGURASI HALAMAN ---
 st.set_page_config(
     page_title="Money Tracker",
     page_icon="favicon.png", 
     layout="wide"
 )
 
-# --- FUNGSI UNTUK MEMASANG BACKGROUND (HALAMAN & SIDEBAR) ---
+# --- FUNGSI UNTUK MEMASANG BACKGROUND ---
 def get_base64_image(png_file):
     if os.path.exists(png_file):
         with open(png_file, "rb") as f:
@@ -32,6 +32,7 @@ css = f"""
     background-size: cover;
     background-position: center;
     background-repeat: no-repeat;
+    background-attachment: fixed;
 }}
 
 /* Background Sidebar */
@@ -52,21 +53,26 @@ FOLDER_UPLOAD = 'uploads'
 if not os.path.exists(FOLDER_UPLOAD):
     os.makedirs(FOLDER_UPLOAD)
 
+# Membaca data TANPA CACHE agar tidak ada lagi masalah data kembali setelah dihapus
 def muat_data():
     if not os.path.exists(FILE_DATA):
-        return pd.DataFrame(columns=['No', 'Tanggal', 'Jenis', 'Kategori', 'Nominal', 'Keterangan', 'Bukti'])
+        # Buat file kosong dengan header jika belum ada
+        df_kosong = pd.DataFrame(columns=['Tanggal', 'Jenis', 'Kategori', 'Nominal', 'Keterangan', 'Bukti'])
+        df_kosong.to_csv(FILE_DATA, index=False)
+        return df_kosong
+    
     df = pd.read_csv(FILE_DATA)
     if 'Bukti' not in df.columns:
         df['Bukti'] = ''
-    if 'No' not in df.columns:
-        df.insert(0, 'No', range(1, len(df) + 1))
     return df
 
 def simpan_data_ke_csv(df):
-    if not df.empty:
-        if 'No' in df.columns:
-            df = df.drop(columns=['No'])
-        df.insert(0, 'No', range(1, len(df) + 1))
+    # Buang kolom bantuan UI sebelum disimpan ke CSV permanen
+    if '📸 Lihat' in df.columns:
+        df = df.drop(columns=['📸 Lihat'])
+    if 'No' in df.columns:
+        df = df.drop(columns=['No'])
+        
     df.to_csv(FILE_DATA, index=False)
 
 def simpan_transaksi(tanggal, jenis, kategori, nominal, keterangan, file_bukti):
@@ -78,9 +84,6 @@ def simpan_transaksi(tanggal, jenis, kategori, nominal, keterangan, file_bukti):
             f.write(file_bukti.getbuffer())
 
     df = muat_data()
-    if 'No' in df.columns:
-        df = df.drop(columns=['No'])
-        
     data_baru = pd.DataFrame({
         'Tanggal': [str(tanggal)],
         'Jenis': [jenis],
@@ -107,7 +110,7 @@ with st.sidebar:
         jenis_input = st.radio("Jenis", ["Pengeluaran", "Pemasukan"], horizontal=True)
         kategori_input = st.selectbox("Kategori", [
             "Makanan", "Transportasi", "Tagihan", "Gaji", 
-            "Zakat/Sedekah", "Investasi", "Kesehatan", "Pendidikan", "Ngopi", "Lainnya"
+            "Zakat/Sedekah", "Investasi", "Kesehatan", "Pendidikan", "Lainnya"
         ])
         nominal_input = st.number_input("Nominal (Rp)", min_value=0, step=1000, format="%d")
         keterangan_input = st.text_input("Keterangan Singkat")
@@ -148,81 +151,69 @@ st.divider()
 st.subheader("📋 Riwayat & Bukti Transaksi")
 
 if not df.empty:
-    if 'No' not in df.columns:
-        df.insert(0, 'No', range(1, len(df) + 1))
+    # 1. Tambahkan kolom Nomor dan Checkbox secara otomatis ke DataFrame untuk tampilan
+    df.insert(0, 'No', range(1, len(df) + 1))
+    df.insert(0, '📸 Lihat', False) # Kolom centang untuk melihat foto
 
-    # Tabel interaktif
+    st.markdown("**💡 Tips:** *Centang kotak di kolom **📸 Lihat** pada tabel di bawah untuk menampilkan foto bukti transaksi. Jangan lupa klik **Simpan Perubahan** jika Anda menghapus data!*")
+
+    # 2. Render Tabel Interaktif
     df_edited = st.data_editor(
         df, 
         use_container_width=True, 
         hide_index=True,
         num_rows="dynamic",
-        key="data_editor_transaksi"
+        key="data_editor_transaksi",
+        column_config={
+            "📸 Lihat": st.column_config.CheckboxColumn("📸 Lihat", default=False),
+            "No": st.column_config.NumberColumn("No", disabled=True),
+            "Bukti": st.column_config.TextColumn("Bukti", disabled=True)
+        }
     )
 
+    # 3. Tombol Simpan (Untuk mengunci perubahan / penghapusan)
     if st.button("💾 Simpan Perubahan Riwayat"):
-        df_lama = df
-        df_baru = df_edited
+        # Cari file bukti fisik yang dihapus dari tabel untuk dibersihkan dari folder
+        bukti_lama = set(df['Bukti'].dropna().astype(str).unique())
+        bukti_baru = set(df_edited['Bukti'].dropna().astype(str).unique())
+        bukti_untuk_dihapus = bukti_lama - bukti_baru
         
-        # Bersihkan kolom 'No' sebelum diproses
-        if 'No' in df_baru.columns:
-            df_baru_tanpa_no = df_baru.drop(columns=['No'])
-        else:
-            df_baru_tanpa_no = df_baru
-
-        if 'No' in df_lama.columns:
-            df_lama_tanpa_no = df_lama.drop(columns=['No'])
-        else:
-            df_lama_tanpa_no = df_lama
-
-        # Hapus file fisik bukti jika barisnya dihapus
-        if 'Bukti' in df_lama_tanpa_no.columns and 'Bukti' in df_baru_tanpa_no.columns:
-            bukti_lama = set(df_lama_tanpa_no['Bukti'].dropna().unique())
-            bukti_baru = set(df_baru_tanpa_no['Bukti'].dropna().unique())
-            bukti_untuk_dihapus = bukti_lama - bukti_baru
-            
-            for nama_file in bukti_untuk_dihapus:
-                if nama_file != "" and isinstance(nama_file, str):
-                    path_hapus = os.path.join(FOLDER_UPLOAD, nama_file)
-                    if os.path.exists(path_hapus):
-                        os.remove(path_hapus)
+        for nama_file in bukti_untuk_dihapus:
+            if nama_file != "":
+                path_hapus = os.path.join(FOLDER_UPLOAD, nama_file)
+                if os.path.exists(path_hapus):
+                    os.remove(path_hapus)
         
-        simpan_data_ke_csv(df_baru_tanpa_no)
-        st.success("✅ Perubahan riwayat & file bukti berhasil diperbarui!")
+        simpan_data_ke_csv(df_edited)
+        st.success("✅ Perubahan riwayat berhasil disimpan secara permanen!")
         st.rerun()
 
+    # 4. Logika Menampilkan Foto (Otomatis muncul jika dicentang di tabel)
     st.markdown("---")
-    st.markdown("### 🔍 Detail & Bukti Berdasarkan Nomor Riwayat")
     
-    df_current = muat_data()
-    nomor_list = df_current['No'].tolist() if not df_current.empty and 'No' in df_current.columns else []
+    # Saring baris yang dicentang oleh pengguna
+    baris_terpilih = df_edited[df_edited['📸 Lihat'] == True]
     
-    if nomor_list:
-        pilih_no = st.selectbox("Pilih Nomor Transaksi untuk melihat bukti:", nomor_list)
+    if not baris_terpilih.empty:
+        # Ambil baris pertama yang dicentang
+        baris_pertama = baris_terpilih.iloc[0]
+        nama_bukti = baris_pertama['Bukti']
+        no_tx = baris_pertama['No']
+        ket_tx = baris_pertama['Keterangan']
         
-        if pilih_no:
-            baris_data = df_current[df_current['No'] == pilih_no]
-            if not baris_data.empty:
-                nama_bukti = baris_data.iloc[0]['Bukti'] if 'Bukti' in baris_data.columns else ''
-                
-                if pd.notna(nama_bukti) and str(nama_bukti).strip() != '':
-                    path_tampil = os.path.join(FOLDER_UPLOAD, str(nama_bukti))
-                    if os.path.exists(path_tampil):
-                        st.image(path_tampil, caption=f"Bukti untuk Transaksi No. {pilih_no} ({baris_data.iloc[0]['Keterangan']})", width=350)
-                    else:
-                        st.warning("⚠️ File gambar bukti fisik tidak ditemukan di server.")
-                else:
-                    st.markdown("""
-                        <div style="background-color: rgba(255, 255, 255, 0.2); border: 1px solid rgba(255, 255, 255, 0.5); padding: 10px; border-radius: 8px; backdrop-filter: blur(5px);">
-                            <p style="color: #ffffff !important; font-weight: 500; font-size: 14px; margin: 0;">Nomor transaksi ini tidak menyertakan foto bukti.</p>
-                        </div>
-                    """, unsafe_allow_html=True)
-    else:
-        st.markdown("""
-            <div style="background-color: rgba(255, 255, 255, 0.2); border: 1px solid rgba(255, 255, 255, 0.5); padding: 12px; border-radius: 10px; text-align: center; backdrop-filter: blur(5px);">
-                <p style="color: #ffffff !important; font-weight: 600; font-size: 15px; margin: 0;">Belum ada riwayat transaksi.</p>
-            </div>
-        """, unsafe_allow_html=True)
+        if pd.notna(nama_bukti) and str(nama_bukti).strip() != '':
+            path_tampil = os.path.join(FOLDER_UPLOAD, str(nama_bukti))
+            if os.path.exists(path_tampil):
+                st.markdown(f"### 🖼️ Bukti Transaksi No. {no_tx} ({ket_tx})")
+                st.image(path_tampil, width=400)
+            else:
+                st.warning("⚠️ File gambar bukti fisik tidak ditemukan di server.")
+        else:
+            st.markdown(f"""
+                <div style="background-color: rgba(255, 255, 255, 0.2); border: 1px solid rgba(255, 255, 255, 0.5); padding: 12px; border-radius: 10px; backdrop-filter: blur(5px);">
+                    <p style="color: #ffffff !important; font-weight: 500; font-size: 15px; margin: 0;">Transaksi No. {no_tx} ini tidak menyertakan foto bukti.</p>
+                </div>
+            """, unsafe_allow_html=True)
 
 else:
     st.markdown("""
@@ -232,4 +223,4 @@ else:
     """, unsafe_allow_html=True)
 
 st.markdown("---")
-st.caption("Aplikasi Manajemen Keuangan Pribadi Syariah v1.0")
+st.caption("Aplikasi Manajemen Keuangan Pribadi v1.0")
