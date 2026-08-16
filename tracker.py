@@ -11,26 +11,38 @@ st.set_page_config(
     layout="wide"
 )
 
-# --- FUNGSI UNTUK MEMASANG BACKGROUND PNG ---
-def set_background(png_file):
+# --- FUNGSI UNTUK MEMASANG BACKGROUND (HALAMAN & SIDEBAR) ---
+def get_base64_image(png_file):
     if os.path.exists(png_file):
         with open(png_file, "rb") as f:
             data = f.read()
-        encoded = base64.b64encode(data).decode()
-        css = f"""
-        <style>
-        .stApp {{
-            background-image: url("data:image/png;base64,{encoded}");
-            background-size: cover;
-            background-position: center;
-            background-repeat: no-repeat;
-        }}
-        </style>
-        """
-        st.markdown(css, unsafe_allow_html=True)
+        return base64.b64encode(data).decode()
+    return ""
 
-# Panggil fungsi background
-set_background("background.png")
+bg_main = get_base64_image("background.png")
+bg_sidebar = get_base64_image("sidebar-bg.png")
+
+# --- KUSTOMISASI CSS ---
+css = f"""
+<style>
+/* Background Halaman Utama */
+.stApp {{
+    background-image: url("data:image/png;base64,{bg_main}");
+    background-size: cover;
+    background-position: center;
+    background-repeat: no-repeat;
+}}
+
+/* Background Sidebar */
+[data-testid="stSidebar"] {{
+    background-image: url("data:image/png;base64,{bg_sidebar}");
+    background-size: cover;
+    background-position: center;
+    background-repeat: no-repeat;
+}}
+</style>
+"""
+st.markdown(css, unsafe_allow_html=True)
 
 # --- SETUP DATABASE ---
 FILE_DATA = 'data_keuangan.csv'
