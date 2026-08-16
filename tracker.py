@@ -137,7 +137,11 @@ st.subheader("📋 Riwayat Transaksi")
 if not df.empty:
     st.dataframe(df.sort_values(by='Tanggal', ascending=False), use_container_width=True, hide_index=True)
 else:
-    st.info("Belum ada data transaksi yang tercatat. Silakan tambah melalui menu di sidebar.")
+    st.markdown("""
+        <div style="background-color: rgba(255, 255, 255, 0.25); border: 1px solid rgba(255, 255, 255, 0.6); padding: 15px; border-radius: 10px; text-align: center; backdrop-filter: blur(5px);">
+            <p style="color: #ffffff !important; font-weight: 600; font-size: 16px; margin: 0;">ℹ️ Belum ada data transaksi yang tercatat. Silakan tambah melalui menu di sidebar.</p>
+        </div>
+    """, unsafe_allow_html=True)
 
 st.markdown("---")
 st.caption("Aplikasi Manajemen Keuangan Pribadi Syariah v1.0")
