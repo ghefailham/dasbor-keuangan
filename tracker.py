@@ -52,18 +52,21 @@ FOLDER_UPLOAD = 'uploads'
 if not os.path.exists(FOLDER_UPLOAD):
     os.makedirs(FOLDER_UPLOAD)
 
-# Membaca data langsung dari CSV tanpa cache agar tidak terjadi data kembali setelah refresh
 def muat_data():
     if not os.path.exists(FILE_DATA):
         return pd.DataFrame(columns=['No', 'Tanggal', 'Jenis', 'Kategori', 'Nominal', 'Keterangan', 'Bukti'])
     df = pd.read_csv(FILE_DATA)
     if 'Bukti' not in df.columns:
         df['Bukti'] = ''
+    if 'No' not in df.columns:
+        df.insert(0, 'No', range(1, len(df) + 1))
     return df
 
 def simpan_data_ke_csv(df):
     if not df.empty:
-        df['No'] = range(1, len(df) + 1)
+        if 'No' in df.columns:
+            df = df.drop(columns=['No'])
+        df.insert(0, 'No', range(1, len(df) + 1))
     df.to_csv(FILE_DATA, index=False)
 
 def simpan_transaksi(tanggal, jenis, kategori, nominal, keterangan, file_bukti):
@@ -75,9 +78,10 @@ def simpan_transaksi(tanggal, jenis, kategori, nominal, keterangan, file_bukti):
             f.write(file_bukti.getbuffer())
 
     df = muat_data()
-    nomor_baru = len(df) + 1
+    if 'No' in df.columns:
+        df = df.drop(columns=['No'])
+        
     data_baru = pd.DataFrame({
-        'No': [nomor_baru],
         'Tanggal': [str(tanggal)],
         'Jenis': [jenis],
         'Kategori': [kategori],
@@ -144,8 +148,8 @@ st.divider()
 st.subheader("📋 Riwayat & Bukti Transaksi")
 
 if not df.empty:
-    if 'No' not in df.columns or len(df['No']) != len(df):
-        df['No'] = range(1, len(df) + 1)
+    if 'No' not in df.columns:
+        df.insert(0, 'No', range(1, len(df) + 1))
 
     # Tabel interaktif
     df_edited = st.data_editor(
@@ -160,18 +164,30 @@ if not df.empty:
         df_lama = df
         df_baru = df_edited
         
+        # Bersihkan kolom 'No' sebelum diproses
+        if 'No' in df_baru.columns:
+            df_baru_tanpa_no = df_baru.drop(columns=['No'])
+        else:
+            df_baru_tanpa_no = df_baru
+
+        if 'No' in df_lama.columns:
+            df_lama_tanpa_no = df_lama.drop(columns=['No'])
+        else:
+            df_lama_tanpa_no = df_lama
+
         # Hapus file fisik bukti jika barisnya dihapus
-        bukti_lama = set(df_lama['Bukti'].dropna().unique())
-        bukti_baru = set(df_baru['Bukti'].dropna().unique())
-        bukti_untuk_dihapus = bukti_lama - bukti_baru
+        if 'Bukti' in df_lama_tanpa_no.columns and 'Bukti' in df_baru_tanpa_no.columns:
+            bukti_lama = set(df_lama_tanpa_no['Bukti'].dropna().unique())
+            bukti_baru = set(df_baru_tanpa_no['Bukti'].dropna().unique())
+            bukti_untuk_dihapus = bukti_lama - bukti_baru
+            
+            for nama_file in bukti_untuk_dihapus:
+                if nama_file != "" and isinstance(nama_file, str):
+                    path_hapus = os.path.join(FOLDER_UPLOAD, nama_file)
+                    if os.path.exists(path_hapus):
+                        os.remove(path_hapus)
         
-        for nama_file in bukti_untuk_dihapus:
-            if nama_file != "" and isinstance(nama_file, str):
-                path_hapus = os.path.join(FOLDER_UPLOAD, nama_file)
-                if os.path.exists(path_hapus):
-                    os.remove(path_hapus)
-        
-        simpan_data_ke_csv(df_baru)
+        simpan_data_ke_csv(df_baru_tanpa_no)
         st.success("✅ Perubahan riwayat & file bukti berhasil diperbarui!")
         st.rerun()
 
@@ -179,7 +195,7 @@ if not df.empty:
     st.markdown("### 🔍 Detail & Bukti Berdasarkan Nomor Riwayat")
     
     df_current = muat_data()
-    nomor_list = df_current['No'].tolist() if not df_current.empty else []
+    nomor_list = df_current['No'].tolist() if not df_current.empty and 'No' in df_current.columns else []
     
     if nomor_list:
         pilih_no = st.selectbox("Pilih Nomor Transaksi untuk melihat bukti:", nomor_list)
@@ -187,9 +203,9 @@ if not df.empty:
         if pilih_no:
             baris_data = df_current[df_current['No'] == pilih_no]
             if not baris_data.empty:
-                nama_bukti = baris_data.iloc[0]['Bukti']
+                nama_bukti = baris_data.iloc[0]['Bukti'] if 'Bukti' in baris_data.columns else ''
                 
-                if pd.notna(nama_bukti) and nama_bukti != '':
+                if pd.notna(nama_bukti) and str(nama_bukti).strip() != '':
                     path_tampil = os.path.join(FOLDER_UPLOAD, str(nama_bukti))
                     if os.path.exists(path_tampil):
                         st.image(path_tampil, caption=f"Bukti untuk Transaksi No. {pilih_no} ({baris_data.iloc[0]['Keterangan']})", width=350)
