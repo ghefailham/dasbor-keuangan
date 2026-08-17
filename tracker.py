@@ -163,12 +163,25 @@ if not df.empty:
     )
 
     # Simpan Tabel ke Supabase
+    # 3. Tombol Simpan (Untuk mengunci perubahan / penghapusan)
     if st.button("💾 Simpan Perubahan Riwayat"):
+        # A. Proses penghapusan data secara sinkron
+        # Kita simpan data baru ke Supabase
         simpan_data_ke_sql(df_edited)
-        st.success("✅ Perubahan riwayat berhasil disimpan permanen ke Database Cloud!")
+        
+        # B. Tampilkan notifikasi keberhasilan
+        st.success("✅ Perubahan berhasil disimpan ke Database!")
+        
+        # C. KUNCI UTAMA: Hapus Cache dan Paksa Rerun
+        # Kita menggunakan st.cache_data.clear() untuk memastikan 
+        # tidak ada data lama yang tersangkut di memori
+        st.cache_data.clear() 
+        
+        # Jeda sejenak agar database selesai menulis data
+        time.sleep(1) 
+        
+        # Paksa aplikasi untuk memuat ulang dari nol
         st.rerun()
-
-    st.markdown("---")
     
     # Logika Menampilkan Foto yang sudah di-Encode di Database
     baris_terpilih = df_edited[df_edited['📸 Lihat'] == True]
