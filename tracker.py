@@ -23,10 +23,8 @@ def get_base64_image(png_file):
 bg_main = get_base64_image("background.png")
 bg_sidebar = get_base64_image("sidebar-bg.png")
 
-# --- KUSTOMISASI CSS ---
 css = f"""
 <style>
-/* Background Halaman Utama */
 .stApp {{
     background-image: url("data:image/png;base64,{bg_main}");
     background-size: cover;
@@ -34,8 +32,6 @@ css = f"""
     background-repeat: no-repeat;
     background-attachment: fixed;
 }}
-
-/* Background Sidebar */
 [data-testid="stSidebar"] {{
     background-image: url("data:image/png;base64,{bg_sidebar}");
     background-size: cover;
@@ -46,42 +42,40 @@ css = f"""
 """
 st.markdown(css, unsafe_allow_html=True)
 
-# --- SETUP DATABASE & FOLDER UPLOAD ---
-FILE_DATA = 'data_keuangan.csv'
-FOLDER_UPLOAD = 'uploads'
+# --- KONEKSI DATABASE SUPABASE ---
+# Mencoba terhubung ke Supabase melalui st.secrets
+try:
+    conn = st.connection("postgresql", type="sql")
+except Exception as e:
+    st.error("Gagal terhubung ke Database. Pastikan Anda sudah mengatur 'Secrets' di dasbor Streamlit Cloud.")
+    st.stop()
 
-if not os.path.exists(FOLDER_UPLOAD):
-    os.makedirs(FOLDER_UPLOAD)
-
-# Membaca data TANPA CACHE agar tidak ada lagi masalah data kembali setelah dihapus
+# Fungsi memuat data langsung dari SQL (Tanpa Cache, selalu real-time)
 def muat_data():
-    if not os.path.exists(FILE_DATA):
-        # Buat file kosong dengan header jika belum ada
-        df_kosong = pd.DataFrame(columns=['Tanggal', 'Jenis', 'Kategori', 'Nominal', 'Keterangan', 'Bukti'])
-        df_kosong.to_csv(FILE_DATA, index=False)
-        return df_kosong
-    
-    df = pd.read_csv(FILE_DATA)
-    if 'Bukti' not in df.columns:
-        df['Bukti'] = ''
-    return df
+    try:
+        df = conn.query("SELECT * FROM transaksi", ttl=0)
+        if 'Bukti' not in df.columns:
+            df['Bukti'] = ''
+        return df
+    except:
+        # Jika tabel belum ada, buat struktur dasarnya
+        return pd.DataFrame(columns=['Tanggal', 'Jenis', 'Kategori', 'Nominal', 'Keterangan', 'Bukti'])
 
-def simpan_data_ke_csv(df):
-    # Buang kolom bantuan UI sebelum disimpan ke CSV permanen
-    if '📸 Lihat' in df.columns:
-        df = df.drop(columns=['📸 Lihat'])
-    if 'No' in df.columns:
-        df = df.drop(columns=['No'])
-        
-    df.to_csv(FILE_DATA, index=False)
+# Fungsi menyimpan/menimpa data ke SQL
+def simpan_data_ke_sql(df_to_save):
+    # Buang kolom buatan UI (No & 📸 Lihat) sebelum dilempar ke database
+    cols_to_drop = [col for col in ['📸 Lihat', 'No'] if col in df_to_save.columns]
+    if cols_to_drop:
+        df_to_save = df_to_save.drop(columns=cols_to_drop)
+    
+    # Simpan permanen ke Supabase
+    df_to_save.to_sql("transaksi", con=conn.engine, if_exists="replace", index=False)
 
 def simpan_transaksi(tanggal, jenis, kategori, nominal, keterangan, file_bukti):
-    nama_file_unik = ""
+    string_bukti = ""
+    # Ubah foto menjadi teks sandi Base64 agar bisa disimpan langsung di Database SQL!
     if file_bukti is not None:
-        nama_file_unik = f"{int(time.time())}_{file_bukti.name}"
-        path_file = os.path.join(FOLDER_UPLOAD, nama_file_unik)
-        with open(path_file, "wb") as f:
-            f.write(file_bukti.getbuffer())
+        string_bukti = base64.b64encode(file_bukti.getvalue()).decode('utf-8')
 
     df = muat_data()
     data_baru = pd.DataFrame({
@@ -90,10 +84,10 @@ def simpan_transaksi(tanggal, jenis, kategori, nominal, keterangan, file_bukti):
         'Kategori': [kategori],
         'Nominal': [float(nominal)],
         'Keterangan': [keterangan],
-        'Bukti': [nama_file_unik]
+        'Bukti': [string_bukti]
     })
     df = pd.concat([df, data_baru], ignore_index=True)
-    simpan_data_ke_csv(df)
+    simpan_data_ke_sql(df)
 
 # --- SIDEBAR: LOGO & INPUT ---
 with st.sidebar:
@@ -121,7 +115,7 @@ with st.sidebar:
     if submit_tombol:
         if nominal_input > 0:
             simpan_transaksi(tanggal_input, jenis_input, kategori_input, nominal_input, keterangan_input, file_bukti_input)
-            st.success("✅ Transaksi & Bukti berhasil dicatat!")
+            st.success("✅ Transaksi & Bukti berhasil dicatat di Database!")
             st.rerun()
         else:
             st.error("Nominal harus lebih dari 0!")
@@ -131,7 +125,6 @@ st.title("📊 Ringkasan Keuangan Anda")
 
 df = muat_data()
 
-# Hitung Keuangan
 if not df.empty:
     total_pemasukan = df[df['Jenis'] == 'Pemasukan']['Nominal'].sum()
     total_pengeluaran = df[df['Jenis'] == 'Pengeluaran']['Nominal'].sum()
@@ -147,17 +140,15 @@ col2.metric("Total Pengeluaran", f"Rp {total_pengeluaran:,.0f}".replace(",", "."
 col3.metric("Saldo Tersisa", f"Rp {saldo_akhir:,.0f}".replace(",", "."))
 
 st.divider()
-
 st.subheader("📋 Riwayat & Bukti Transaksi")
 
 if not df.empty:
-    # 1. Tambahkan kolom Nomor dan Checkbox secara otomatis ke DataFrame untuk tampilan
     df.insert(0, 'No', range(1, len(df) + 1))
-    df.insert(0, '📸 Lihat', False) # Kolom centang untuk melihat foto
+    df.insert(0, '📸 Lihat', False)
 
-    st.markdown("**💡 Tips:** *Centang kotak di kolom **📸 Lihat** pada tabel di bawah untuk menampilkan foto bukti transaksi. Jangan lupa klik **Simpan Perubahan** jika Anda menghapus data!*")
+    st.markdown("**💡 Tips:** *Centang kotak di kolom **📸 Lihat** pada tabel di bawah untuk menampilkan foto bukti transaksi. Klik **Simpan Perubahan** jika Anda mengedit atau menghapus data.*")
 
-    # 2. Render Tabel Interaktif
+    # Render Tabel
     df_edited = st.data_editor(
         df, 
         use_container_width=True, 
@@ -171,50 +162,37 @@ if not df.empty:
         }
     )
 
-    # 3. Tombol Simpan (Untuk mengunci perubahan / penghapusan)
+    # Simpan Tabel ke Supabase
     if st.button("💾 Simpan Perubahan Riwayat"):
-        # Cari file bukti fisik yang dihapus dari tabel untuk dibersihkan dari folder
-        bukti_lama = set(df['Bukti'].dropna().astype(str).unique())
-        bukti_baru = set(df_edited['Bukti'].dropna().astype(str).unique())
-        bukti_untuk_dihapus = bukti_lama - bukti_baru
-        
-        for nama_file in bukti_untuk_dihapus:
-            if nama_file != "":
-                path_hapus = os.path.join(FOLDER_UPLOAD, nama_file)
-                if os.path.exists(path_hapus):
-                    os.remove(path_hapus)
-        
-        simpan_data_ke_csv(df_edited)
-        st.success("✅ Perubahan riwayat berhasil disimpan secara permanen!")
+        simpan_data_ke_sql(df_edited)
+        st.success("✅ Perubahan riwayat berhasil disimpan permanen ke Database Cloud!")
         st.rerun()
 
-    # 4. Logika Menampilkan Foto (Otomatis muncul jika dicentang di tabel)
     st.markdown("---")
     
-    # Saring baris yang dicentang oleh pengguna
+    # Logika Menampilkan Foto yang sudah di-Encode di Database
     baris_terpilih = df_edited[df_edited['📸 Lihat'] == True]
     
     if not baris_terpilih.empty:
-        # Ambil baris pertama yang dicentang
         baris_pertama = baris_terpilih.iloc[0]
-        nama_bukti = baris_pertama['Bukti']
+        string_bukti = baris_pertama['Bukti']
         no_tx = baris_pertama['No']
         ket_tx = baris_pertama['Keterangan']
         
-        if pd.notna(nama_bukti) and str(nama_bukti).strip() != '':
-            path_tampil = os.path.join(FOLDER_UPLOAD, str(nama_bukti))
-            if os.path.exists(path_tampil):
+        if pd.notna(string_bukti) and str(string_bukti).strip() != '':
+            try:
+                # Mengubah teks sandi Base64 kembali menjadi gambar fisik
+                image_bytes = base64.b64decode(str(string_bukti))
                 st.markdown(f"### 🖼️ Bukti Transaksi No. {no_tx} ({ket_tx})")
-                st.image(path_tampil, width=400)
-            else:
-                st.warning("⚠️ File gambar bukti fisik tidak ditemukan di server.")
+                st.image(image_bytes, width=400)
+            except:
+                st.warning("⚠️ Data gambar korup atau tidak valid.")
         else:
             st.markdown(f"""
                 <div style="background-color: rgba(255, 255, 255, 0.2); border: 1px solid rgba(255, 255, 255, 0.5); padding: 12px; border-radius: 10px; backdrop-filter: blur(5px);">
                     <p style="color: #ffffff !important; font-weight: 500; font-size: 15px; margin: 0;">Transaksi No. {no_tx} ini tidak menyertakan foto bukti.</p>
                 </div>
             """, unsafe_allow_html=True)
-
 else:
     st.markdown("""
         <div style="background-color: rgba(255, 255, 255, 0.2); border: 1px solid rgba(255, 255, 255, 0.5); padding: 15px; border-radius: 10px; text-align: center; backdrop-filter: blur(5px);">
@@ -223,4 +201,4 @@ else:
     """, unsafe_allow_html=True)
 
 st.markdown("---")
-st.caption("Aplikasi Manajemen Keuangan Pribadi v1.0")
+st.caption("Aplikasi Manajemen Keuangan Pribadi Terintegrasi Cloud Database v2.0")
